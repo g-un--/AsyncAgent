@@ -14,3 +14,6 @@ agent.Send("Hello world!");
 //when finished
 agent.Dispose();
 ```
+
+[![Build status](https://ci.appveyor.com/api/projects/status/lwlmja34mnec0hi2/branch/master?svg=true)](https://ci.appveyor.com/project/g-un--/asyncagent/branch/master)
+
