@@ -29,7 +29,7 @@ namespace AsyncAgent.Tests
         }
 
         [Fact]
-        public void AgentCanHandleAMessage()
+        public async Task AgentCanHandleAMessage()
         {
             var tcs = new TaskCompletionSource<string>();
             var message = "test";
@@ -39,13 +39,13 @@ namespace AsyncAgent.Tests
             });
 
             agent.Send(message);
-            var processedMessage = tcs.Task.Result;
+            var processedMessage = await tcs.Task;
 
             Assert.Equal(message, processedMessage);
         }
 
         [Fact]
-        public void AgentTriggersErrorHandler()
+        public async Task AgentTriggersErrorHandler()
         {
             var tcs = new TaskCompletionSource<Exception>();
             var message = "test";
@@ -58,26 +58,26 @@ namespace AsyncAgent.Tests
             agent.Error += (ex) => tcs.SetResult(ex);
 
             agent.Send(message);
-            var triggeredException = tcs.Task.Result;
+            var triggeredException = await tcs.Task;
 
             Assert.Equal(exception, triggeredException);
         }
 
         [Fact]
-        public void AgentDoesNotHandleMessagesAfterDispose()
+        public async Task AgentDoesNotHandleMessagesAfterDispose()
         {
             var cts = new TaskCompletionSource<int>();
             var agent = new AsyncAgent<int>(async (msg, ct) => { await Task.Delay(0); cts.SetResult(msg); });
             agent.Dispose();
             agent.Send(1);
 
-            cts.Task.Wait(10);
+            await Task.Delay(50);
 
             Assert.False(cts.Task.IsCompleted);
         }
 
         [Fact]
-        public void AgentHandlesMessagesInOrder()
+        public async Task AgentHandlesMessagesInOrder()
         {
             var parallelHandlers = 0;
             var random = new Random();
@@ -107,7 +107,7 @@ namespace AsyncAgent.Tests
             {
                 agent.Send(msg);
             }
-            Task.WaitAll(tasks.Select(item => item.Task).ToArray());
+            await Task.WhenAll(tasks.Select(item => item.Task).ToArray());
 
             Assert.Null(thrownException);
         }
