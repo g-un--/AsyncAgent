@@ -11,9 +11,34 @@ namespace Playground
         static void Main(string[] args)
         {
             var tokenSource = new CancellationTokenSource();
-            TestPerformance(tokenSource.Token);
+
+            TestGate(tokenSource.Token)
+                .ContinueWith(task => TestPerformance(tokenSource.Token));
+
             ReadLine();
             tokenSource.Cancel();
+        }
+
+        private static Task TestGate(CancellationToken ct)
+        {
+            return Task.Run(async () =>
+            {
+                var gate = new Gate<string>(LockState.Locked, async m =>
+                {
+                    await Task.Delay(0);
+                    WriteLine(m);
+                });
+
+                gate.Send("This message should not be displayed.");
+                gate.Unlock();
+                gate.Send("Hello World!");
+                gate.Lock();
+                gate.Send("This message should not be displayed.");
+
+                await Task.Delay(2000);
+                gate.Dispose();
+                Clear();
+            }, ct);
         }
 
         private static Task TestPerformance(CancellationToken ct)

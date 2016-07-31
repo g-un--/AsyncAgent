@@ -4,23 +4,25 @@ using System.Threading.Tasks;
 
 namespace AsyncAgentLib
 {
-    public class AsyncStateMachine : IDisposable
+    public class AsyncStateMachine<State> : IDisposable
     {
-        private AsyncAgent<Func<CancellationToken, Task>> _processor;
+        private State _state;
+        private AsyncAgent<Func<CancellationToken, Task<State>>> _processor;
 
-        public AsyncStateMachine()
+        public AsyncStateMachine(State initialState)
         {
-            _processor = new AsyncAgent<Func<CancellationToken, Task>>(async (message, cancellationToken) =>
+            _state = initialState;
+            _processor = new AsyncAgent<Func<CancellationToken, Task<State>>>(async (message, cancellationToken) =>
             {
-                await message(cancellationToken);
+                _state = await message(cancellationToken);
             });
         }
 
-        protected void Send<T>(T message, Func<T, CancellationToken, Task> handler)
+        protected void Send<T>(T message, Func<State, T, CancellationToken, Task<State>> handler)
         {
-            _processor.Send(async (cancellationToken) =>
+            _processor.Send(cancellationToken =>
             {
-                await handler(message, cancellationToken);
+                return handler(_state, message, cancellationToken);
             });
         }
 
