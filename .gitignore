@@ -4,6 +4,8 @@
 .build/
 .test/
 
+NuGet.exe
+
 # User-specific files
 *.suo
 *.user
