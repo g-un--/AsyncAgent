@@ -60,9 +60,10 @@ namespace Playground
         {
             return new AsyncAgent<AgentState, long>(
                 initialState: new AgentState { ItemsCount = 0, Sum = 0 },
-                messageHandler: async (state, msg, ct) =>
+                messageHandler: (state, msg, ct) =>
                 {
-                    await Task.Delay(0, ct);
+                    if (ct.IsCancellationRequested)
+                        ct.ThrowIfCancellationRequested();
 
                     state.Sum += msg;
                     state.ItemsCount = state.ItemsCount + 1;
@@ -76,7 +77,7 @@ namespace Playground
                         state.Sum = 0;
                     }
 
-                    return state;
+                    return Task.FromResult(state);
                 },
                 errorHandler: ex => Task.FromResult(false));
         }
