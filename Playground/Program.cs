@@ -1,5 +1,6 @@
 ﻿using AsyncAgentLib;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Console;
@@ -11,34 +12,9 @@ namespace Playground
         static void Main(string[] args)
         {
             var tokenSource = new CancellationTokenSource();
-
-            TestGate(tokenSource.Token)
-                .ContinueWith(task => TestPerformance(tokenSource.Token));
-
+            TestPerformance(tokenSource.Token);
             ReadLine();
             tokenSource.Cancel();
-        }
-
-        private static Task TestGate(CancellationToken ct)
-        {
-            return Task.Run(async () =>
-            {
-                var gate = new Gate<string>(LockState.Locked, async m =>
-                {
-                    await Task.Delay(0);
-                    WriteLine(m);
-                });
-
-                gate.Send("This message should not be displayed.");
-                gate.Unlock();
-                gate.Send("Hello World!");
-                gate.Lock();
-                gate.Send("This message should not be displayed.");
-
-                await Task.Delay(2000);
-                gate.Dispose();
-                Clear();
-            }, ct);
         }
 
         private static Task TestPerformance(CancellationToken ct)
@@ -46,7 +22,7 @@ namespace Playground
             return Task.Run(async () =>
             {
                 var stopwatch = new Stopwatch();
-                
+
                 int test = 0;
                 while (!ct.IsCancellationRequested)
                 {
@@ -55,9 +31,8 @@ namespace Playground
                     var agent = GetNewAgent(stopwatch);
                     stopwatch.Start();
 
-                    for (long item = 1; item <= 1000000; item++)
+                    foreach (var msg in Enumerable.Range(1, 1000000).AsParallel())
                     {
-                        long msg = item;
                         agent.Send(msg);
                     }
 
@@ -75,25 +50,35 @@ namespace Playground
             }, ct);
         }
 
-        static AsyncAgent<long> GetNewAgent(Stopwatch stopwatch)
+        struct AgentState
         {
-            long sum = 0;
-            int items = 0;
+            public long ItemsCount { get; set; }
+            public long Sum { get; set; }
+        }
 
-            return new AsyncAgent<long>(async (msg, ct) =>
-            {
-                sum += msg;
-                items += 1;
-                await Task.Delay(0);
-                if (items == 1000000)
+        static AsyncAgent<AgentState, long> GetNewAgent(Stopwatch stopwatch)
+        {
+            return new AsyncAgent<AgentState, long>(
+                initialState: new AgentState { ItemsCount = 0, Sum = 0 },
+                messageHandler: async (state, msg, ct) =>
                 {
-                    stopwatch.Stop();
-                    WriteLine($"Items: [1..{items}], Sum: {sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
-                    stopwatch.Reset();
-                    sum = 0;
-                    items = 0;
-                }
-            });
+                    await Task.Delay(0, ct);
+
+                    state.Sum += msg;
+                    state.ItemsCount = state.ItemsCount + 1;
+
+                    if (state.ItemsCount == 1000000)
+                    {
+                        stopwatch.Stop();
+                        WriteLine($"Sum for: [1..{state.ItemsCount}], Sum: {state.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+                        stopwatch.Reset();
+                        state.ItemsCount = 0;
+                        state.Sum = 0;
+                    }
+
+                    return state;
+                },
+                errorHandler: ex => Task.FromResult(false));
         }
     }
 }

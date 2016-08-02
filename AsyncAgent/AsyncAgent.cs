@@ -5,27 +5,42 @@ using System.Threading.Tasks;
 
 namespace AsyncAgentLib
 {
-    public class AsyncAgent<T> : IDisposable
+    public class AsyncAgent<TState, TMessage> : IDisposable
     {
-        public event Action<Exception> Error;
-
-        private ConcurrentQueue<T> _workItems;
-        private Func<T, CancellationToken, Task> _handler;
+        private ConcurrentQueue<TMessage> _workItems;
+        private Func<Exception, Task<bool>> _errorHandler;
+        private TState _currentState;
+        private Func<TState, TMessage, CancellationToken, Task<TState>> _messageHandler;
         private CancellationTokenSource _cts;
         private TaskCompletionSource<bool> _signal;
         private int _signalSync;
         private int _writers;
         private int _disposed;
 
-        public AsyncAgent(Func<T, CancellationToken, Task> handler)
+        public AsyncAgent(
+            TState initialState, 
+            Func<TState, TMessage, CancellationToken, Task<TState>> messageHandler,
+            Func<Exception, Task<bool>> errorHandler)
         {
-            if (handler == null)
+            if (initialState == null)
             {
-                throw new ArgumentNullException("handler");
+                throw new ArgumentNullException(nameof(initialState));
             }
 
-            _workItems = new ConcurrentQueue<T>();
-            _handler = handler;
+            if (messageHandler == null)
+            {
+                throw new ArgumentNullException(nameof(messageHandler));
+            }
+
+            if (errorHandler == null)
+            {
+                throw new ArgumentNullException(nameof(errorHandler));
+            }
+
+            _workItems = new ConcurrentQueue<TMessage>();
+            _currentState = initialState;
+            _messageHandler = messageHandler;
+            _errorHandler = errorHandler;
             _signal = new TaskCompletionSource<bool>();
             _cts = new CancellationTokenSource();
             _signalSync = 0;
@@ -34,7 +49,7 @@ namespace AsyncAgentLib
             ProcessItem();
         }
 
-        public void Send(T message)
+        public void Send(TMessage message)
         {
             if (0 == Interlocked.CompareExchange(ref _disposed, 0, 0))
             {
@@ -44,7 +59,7 @@ namespace AsyncAgentLib
 
                 if (0 == Interlocked.Exchange(ref _signalSync, 1))
                 {
-                    _signal.SetResult(true);
+                    _signal.TrySetResult(true);
                 }
 
                 Interlocked.Decrement(ref _writers);
@@ -60,21 +75,28 @@ namespace AsyncAgentLib
                     if(_signal.Task.IsCompleted)
                         _signal = new TaskCompletionSource<bool>();
 
-                    T item;
+                    TMessage item;
+                    bool shouldContinue = true;
+
                     while (!_cts.IsCancellationRequested && _workItems.TryDequeue(out item))
                     {
                         try
                         {
-                            await _handler(item, _cts.Token);
+                            _currentState = await _messageHandler(_currentState, item, _cts.Token);
                         }
                         catch (Exception ex)
                         {
-                            Error?.Invoke(ex);
+                            shouldContinue = await _errorHandler(ex);
+                            if (!shouldContinue)
+                                break;
                         }
                     }
 
-                    Interlocked.Exchange(ref _signalSync, _writers > 0 ? 1 : 0);
-                    ProcessItem();
+                    if (shouldContinue)
+                    {
+                        Interlocked.Exchange(ref _signalSync, _writers > 0 ? 1 : 0);
+                        ProcessItem();
+                    }
                 }
                 else
                 {

@@ -10,13 +10,16 @@ namespace AsyncAgent.Tests
     public class AsyncAgentTests
     {
         [Fact]
-        public void AgentThrowsArgumentNullException()
+        public void AgentThrowsArgumentNullExceptionForInitialState()
         {
             ArgumentNullException thrownException = null;
 
             try
             {
-                new AsyncAgent<string>(null);
+                new AsyncAgent<string, string>(
+                    initialState: null, 
+                    messageHandler: (state, msg, ct) => Task.FromResult(state),
+                    errorHandler: ex => Task.FromResult(true));
             }
             catch (ArgumentNullException ex)
             {
@@ -24,6 +27,49 @@ namespace AsyncAgent.Tests
             }
 
             Assert.NotNull(thrownException);
+            Assert.True(string.CompareOrdinal(thrownException.ParamName, "initialState") == 0);
+        }
+
+        [Fact]
+        public void AgentThrowsArgumentNullExceptionForMessageHandler()
+        {
+            ArgumentNullException thrownException = null;
+
+            try
+            {
+                new AsyncAgent<string, string>(
+                    initialState: string.Empty,
+                    messageHandler: null,
+                    errorHandler: ex => Task.FromResult(true));
+            }
+            catch (ArgumentNullException ex)
+            {
+                thrownException = ex;
+            }
+
+            Assert.NotNull(thrownException);
+            Assert.True(string.CompareOrdinal(thrownException.ParamName, "messageHandler") == 0);
+        }
+
+        [Fact]
+        public void AgentThrowsArgumentNullExceptionForErrorHandler()
+        {
+            ArgumentNullException thrownException = null;
+
+            try
+            {
+                new AsyncAgent<string, string>(
+                    initialState: string.Empty,
+                    messageHandler: (state, msg, ct) => Task.FromResult(state),
+                    errorHandler: null);
+            }
+            catch (ArgumentNullException ex)
+            {
+                thrownException = ex;
+            }
+
+            Assert.NotNull(thrownException);
+            Assert.True(string.CompareOrdinal(thrownException.ParamName, "errorHandler") == 0);
         }
 
         [Fact]
@@ -31,10 +77,15 @@ namespace AsyncAgent.Tests
         {
             var tcs = new TaskCompletionSource<string>();
             var message = "test";
-            var agent = new AsyncAgent<string>(async (msg, ct) =>
-            {
-                await Task.Delay(0); tcs.SetResult(msg);
-            });
+            var agent = new AsyncAgent<string, string>(
+                string.Empty,
+                async (state, msg, ct) =>
+                {
+                    await Task.Delay(0, ct);
+                    tcs.SetResult(msg);
+                    return state;
+                },
+                ex => Task.FromResult(true));
 
             agent.Send(message);
             var processedMessage = await tcs.Task;
@@ -48,12 +99,18 @@ namespace AsyncAgent.Tests
             var tcs = new TaskCompletionSource<Exception>();
             var message = "test";
             var exception = new Exception();
-            var agent = new AsyncAgent<string>(async (msg, ct) =>
-            {
-                await Task.Delay(0);
-                throw exception;
-            });
-            agent.Error += (ex) => tcs.SetResult(ex);
+            var agent = new AsyncAgent<string, string>(
+                initialState: string.Empty,
+                messageHandler: async (state, msg, ct) =>
+                {
+                    await Task.Delay(0, ct);
+                    throw exception;
+                },
+                errorHandler: ex =>
+                {
+                    tcs.SetResult(ex);
+                    return Task.FromResult(true);
+                });
 
             agent.Send(message);
             var triggeredException = await tcs.Task;
@@ -64,14 +121,22 @@ namespace AsyncAgent.Tests
         [Fact]
         public async Task AgentDoesNotHandleMessagesAfterDispose()
         {
-            var cts = new TaskCompletionSource<int>();
-            var agent = new AsyncAgent<int>(async (msg, ct) => { await Task.Delay(0); cts.SetResult(msg); });
+            var tcs = new TaskCompletionSource<int>();
+            var agent = new AsyncAgent<int, int>(
+                initialState: 0,
+                messageHandler: async (state, msg, ct) =>
+                {
+                    await Task.Delay(0, ct);
+                    tcs.SetResult(msg);
+                    return state;
+                },
+                errorHandler: ex => Task.FromResult(true));
+
             agent.Dispose();
             agent.Send(1);
-
             await Task.Delay(50);
 
-            Assert.False(cts.Task.IsCompleted);
+            Assert.False(tcs.Task.IsCompleted);
         }
 
         [Fact]
@@ -82,31 +147,38 @@ namespace AsyncAgent.Tests
             Exception thrownException = null;
             var range = Enumerable.Range(0, 10);
             var tasks = range.Select(_ => new TaskCompletionSource<int>()).ToList();
-            var agent = new AsyncAgent<int>(async (msg, ct) =>
-            {
-                if (1 != Interlocked.Increment(ref parallelHandlers))
+            var agent = new AsyncAgent<int, int>(
+                initialState: 0,
+                messageHandler: async (state, msg, ct) =>
                 {
-                    throw new Exception("parallelHandlers should be 1");
-                }
-                await Task.Delay(random.Next(5));
-                Interlocked.Decrement(ref parallelHandlers);
-                tasks[msg].SetResult(msg);
-            });
-            agent.Error += (ex) =>
-            {
-                thrownException = ex;
-                foreach (var index in range)
+                    if (1 != Interlocked.Increment(ref parallelHandlers))
+                    {
+                        throw new Exception("parallelHandlers should be 1");
+                    }
+
+                    await Task.Delay(random.Next(5));
+
+                    if(0 != Interlocked.Decrement(ref parallelHandlers))
+                    {
+                        throw new Exception("parrallelHandlers should be 0");
+                    }
+
+                    tasks[msg].SetResult(msg);
+
+                    return state;
+                },
+                errorHandler: ex =>
                 {
-                    tasks[index].SetResult(-1);
-                }
-            };
+                    thrownException = ex;
+                    return Task.FromResult(true);
+                });
 
             foreach (var msg in range)
             {
                 agent.Send(msg);
             }
             await Task.WhenAll(tasks.Select(item => item.Task).ToArray());
-
+            
             Assert.Null(thrownException);
         }
     }
