@@ -8,9 +8,8 @@ let buildDir = "./.build/"
 let testDir = "./.test/"
 let packages = !! "./**/packages.config"
 
-let testProj = @"AsyncAgent.Tests/AsyncAgent.Tests.csproj"  
-let asyncAgentProj = @"AsyncAgent/AsyncAgent.csproj"
-let playgroundProj = @"Playground/Playground.csproj"
+let testProjs = !! "*.Tests/*.Tests.csproj"  
+let asyncAgentProjs = !! "**/*.csproj" -- "*.Tests/*.Tests.csproj"
 
 Target "Clean" (fun _ ->
     CleanDirs [buildDir; testDir]
@@ -22,7 +21,7 @@ Target "RestorePackages" (fun _ ->
 )
 
 Target "Build" (fun _ -> 
-    [asyncAgentProj; playgroundProj]
+    asyncAgentProjs  
     |> Seq.iter (fun proj ->
         let folderName = Directory.GetParent(proj).Name
         let outputDir = buildDir @@ folderName
@@ -30,7 +29,7 @@ Target "Build" (fun _ ->
 )
 
 Target "BuildTest" (fun _ ->
-    [testProj]
+    testProjs
     |> MSBuildDebug testDir "Build"
     |> ignore
 )
