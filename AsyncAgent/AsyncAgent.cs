@@ -23,19 +23,13 @@ namespace AsyncAgentLib
             Func<Exception, Task<bool>> errorHandler)
         {
             if (initialState == null)
-            {
                 throw new ArgumentNullException(nameof(initialState));
-            }
 
             if (messageHandler == null)
-            {
                 throw new ArgumentNullException(nameof(messageHandler));
-            }
 
             if (errorHandler == null)
-            {
                 throw new ArgumentNullException(nameof(errorHandler));
-            }
 
             _workItems = new ConcurrentQueue<TMessage>();
             _currentState = initialState;

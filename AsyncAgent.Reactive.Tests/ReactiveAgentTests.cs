@@ -10,6 +10,69 @@ namespace AsyncAgentLib.Reactive.Tests
     public class ReactiveAgentTests
     {
         [Fact]
+        public void AgentThrowsArgumentNullExceptionForInitialState()
+        {
+            ArgumentNullException thrownException = null;
+
+            try
+            {
+                new ReactiveAsyncAgent<string, string>(
+                    initialState: null,
+                    messageHandler: (state, msg, ct) => Task.FromResult(state),
+                    errorHandler: ex => Task.FromResult(true));
+            }
+            catch (ArgumentNullException ex)
+            {
+                thrownException = ex;
+            }
+
+            Assert.NotNull(thrownException);
+            Assert.True(string.CompareOrdinal(thrownException.ParamName, "initialState") == 0);
+        }
+
+        [Fact]
+        public void AgentThrowsArgumentNullExceptionForMessageHandler()
+        {
+            ArgumentNullException thrownException = null;
+
+            try
+            {
+                new ReactiveAsyncAgent<string, string>(
+                    initialState: string.Empty,
+                    messageHandler: null,
+                    errorHandler: ex => Task.FromResult(true));
+            }
+            catch (ArgumentNullException ex)
+            {
+                thrownException = ex;
+            }
+
+            Assert.NotNull(thrownException);
+            Assert.True(string.CompareOrdinal(thrownException.ParamName, "messageHandler") == 0);
+        }
+
+        [Fact]
+        public void AgentThrowsArgumentNullExceptionForErrorHandler()
+        {
+            ArgumentNullException thrownException = null;
+
+            try
+            {
+                new ReactiveAsyncAgent<string, string>(
+                    initialState: string.Empty,
+                    messageHandler: (state, msg, ct) => Task.FromResult(state),
+                    errorHandler: null);
+            }
+            catch (ArgumentNullException ex)
+            {
+                thrownException = ex;
+            }
+
+            Assert.NotNull(thrownException);
+            Assert.True(string.CompareOrdinal(thrownException.ParamName, "errorHandler") == 0);
+        }
+
+        [Fact]
         public async Task AgentCanHandleMessage()
         {
             var message = "test";

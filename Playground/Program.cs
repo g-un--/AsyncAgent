@@ -1,6 +1,8 @@
 ﻿using AsyncAgentLib;
+using AsyncAgentLib.Reactive;
 using System.Diagnostics;
 using System.Linq;
+using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Console;
@@ -28,16 +30,31 @@ namespace Playground
                 {
                     test += 1;
 
-                    var agent = GetNewAgent(stopwatch);
+                    var reactiveAgent = GetNewReactiveAgent(stopwatch);
                     stopwatch.Start();
-
+                    var completedMessagesTask = reactiveAgent.Output
+                        .SkipWhile(state => state.ItemsCount < 1000000)
+                        .FirstAsync();
                     foreach (var msg in Enumerable.Range(1, 1000000).AsParallel())
                     {
-                        agent.Send(msg);
+                        reactiveAgent.Input.OnNext(msg);
                     }
-
+                    var latestState = await completedMessagesTask;
+                    stopwatch.Stop();
+                    WriteLine($"ReactiveAsyncAgent -> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+                    stopwatch.Reset();
+                    reactiveAgent.Dispose();
                     await Task.Delay(1000, ct);
-                    agent.Dispose();
+
+                    var asyncAgent = GetNewAgent(stopwatch);
+                    stopwatch.Start();
+                    foreach (var msg in Enumerable.Range(1, 1000000).AsParallel())
+                    {
+                        asyncAgent.Send(msg);
+                    }
+                    await Task.Delay(1000, ct);
+                    stopwatch.Reset();
+                    asyncAgent.Dispose();
 
                     if (test % 10 == 0)
                     {
@@ -56,14 +73,29 @@ namespace Playground
             public long Sum { get; set; }
         }
 
+        static ReactiveAsyncAgent<AgentState, long> GetNewReactiveAgent(Stopwatch stopwatch)
+        {
+            return new ReactiveAsyncAgent<AgentState, long>(
+                initialState: new AgentState { ItemsCount = 0, Sum = 0 },
+                messageHandler: (state, msg, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    state.Sum += msg;
+                    state.ItemsCount = state.ItemsCount + 1;
+
+                    return Task.FromResult(state);
+                },
+                errorHandler: ex => Task.FromResult(false));
+        }
+
         static AsyncAgent<AgentState, long> GetNewAgent(Stopwatch stopwatch)
         {
             return new AsyncAgent<AgentState, long>(
                 initialState: new AgentState { ItemsCount = 0, Sum = 0 },
                 messageHandler: (state, msg, ct) =>
                 {
-                    if (ct.IsCancellationRequested)
-                        ct.ThrowIfCancellationRequested();
+                    ct.ThrowIfCancellationRequested();
 
                     state.Sum += msg;
                     state.ItemsCount = state.ItemsCount + 1;
@@ -71,7 +103,7 @@ namespace Playground
                     if (state.ItemsCount == 1000000)
                     {
                         stopwatch.Stop();
-                        WriteLine($"Sum for: [1..{state.ItemsCount}], Sum: {state.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+                        WriteLine($"AsyncAgent         -> Sum for: [1..{state.ItemsCount}], Sum: {state.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
                         stopwatch.Reset();
                         state.ItemsCount = 0;
                         state.Sum = 0;

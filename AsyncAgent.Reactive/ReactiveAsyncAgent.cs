@@ -20,13 +20,22 @@ namespace AsyncAgentLib.Reactive
             Func<TState, TMessage, CancellationToken, Task<TState>> messageHandler,
             Func<Exception, Task<bool>> errorHandler)
         {
+            if (initialState == null)
+                throw new ArgumentNullException(nameof(initialState));
+
+            if (messageHandler == null)
+                throw new ArgumentNullException(nameof(messageHandler));
+
+            if (errorHandler == null)
+                throw new ArgumentNullException(nameof(errorHandler));
+
             BehaviorSubject<TState> stateSubject = new BehaviorSubject<TState>(initialState);
             var asyncAgent = new AsyncAgent<TState, TMessage>(
                 initialState: initialState,
                 messageHandler: async (state, msg, ct) =>
                 {
                     var newState = await messageHandler(state, msg, ct);
-                    await Task.Run(() => stateSubject.OnNext(newState));
+                    stateSubject.OnNext(newState);
                     return newState;
                 },
                 errorHandler: async ex =>
@@ -41,7 +50,7 @@ namespace AsyncAgentLib.Reactive
 
             var agentDisposable = Disposable.Create(() => asyncAgent.Dispose());
             var stateDisposable = Disposable.Create(() => stateSubject.Dispose());
-           
+
             Input = Observer.Create<TMessage>(
                 onNext: message => asyncAgent.Send(message),
                 onError: ex =>
