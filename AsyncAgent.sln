@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncAgent.Tests", "AsyncAg
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Playground", "Playground\Playground.csproj", "{C2ADBDB7-85C0-4D75-94E7-DA6266DD178B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncAgent.Reactive", "AsyncAgent.Reactive\AsyncAgent.Reactive.csproj", "{871743D1-4BBA-44F5-87EA-0ACD733E8DB1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsyncAgent.Reactive.Tests", "AsyncAgent.Reactive.Tests\AsyncAgent.Reactive.Tests.csproj", "{BF9DE759-9069-4CDB-898B-8AFCB3940140}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +31,14 @@ Global
 		{C2ADBDB7-85C0-4D75-94E7-DA6266DD178B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C2ADBDB7-85C0-4D75-94E7-DA6266DD178B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C2ADBDB7-85C0-4D75-94E7-DA6266DD178B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{871743D1-4BBA-44F5-87EA-0ACD733E8DB1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{871743D1-4BBA-44F5-87EA-0ACD733E8DB1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{871743D1-4BBA-44F5-87EA-0ACD733E8DB1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{871743D1-4BBA-44F5-87EA-0ACD733E8DB1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF9DE759-9069-4CDB-898B-8AFCB3940140}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF9DE759-9069-4CDB-898B-8AFCB3940140}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF9DE759-9069-4CDB-898B-8AFCB3940140}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF9DE759-9069-4CDB-898B-8AFCB3940140}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

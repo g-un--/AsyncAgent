@@ -1,11 +1,10 @@
-﻿using AsyncAgentLib;
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace AsyncAgent.Tests
+namespace AsyncAgentLib.Tests
 {
     public class AsyncAgentTests
     {
@@ -73,7 +72,7 @@ namespace AsyncAgent.Tests
         }
 
         [Fact]
-        public async Task AgentCanHandleAMessage()
+        public async Task AgentCanHandleMessage()
         {
             var tcs = new TaskCompletionSource<string>();
             var message = "test";
