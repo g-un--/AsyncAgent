@@ -12,7 +12,7 @@ namespace AsyncAgentLib.Reactive
         private readonly BehaviorSubject<TState> _stateSubject;
         private readonly AsyncAgent<TState, TMessage> _asyncAgent;
 
-        public IObservable<TState> Output { get; private set; }
+        public IObservable<TState> State { get; private set; }
 
         public ReactiveAsyncAgent(
             TState initialState,
@@ -65,7 +65,7 @@ namespace AsyncAgentLib.Reactive
                     return shouldContinue;
                 });
 
-            Output = _stateSubject.AsObservable();
+            State = _stateSubject.AsObservable();
         }
 
         public void Send(TMessage message)

@@ -87,7 +87,7 @@ namespace AsyncAgentLib.Reactive.Tests
                 },
                 errorHandler: (ex, ct) => Task.FromResult(true));
 
-            agent.Output.Skip(1).Take(1).Do(msg => tcs.SetResult(msg)).Subscribe();
+            agent.State.Skip(1).Take(1).Do(msg => tcs.SetResult(msg)).Subscribe();
             agent.Send(message);
             var receivedMessage = await tcs.Task;
 
@@ -108,7 +108,7 @@ namespace AsyncAgentLib.Reactive.Tests
                 },
                 errorHandler: (ex, ct) => Task.FromResult(false));
 
-            agent.Output.Subscribe(_ => { }, ex => tcs.SetResult(ex));
+            agent.State.Subscribe(_ => { }, ex => tcs.SetResult(ex));
             agent.Send(string.Empty);
             var receivedException = await tcs.Task;
 
@@ -128,7 +128,7 @@ namespace AsyncAgentLib.Reactive.Tests
                 },
                 errorHandler: (ex, ct) => Task.FromResult(true));
 
-            agent.Output.Subscribe(_ => { }, () => tcs.SetResult(true));
+            agent.State.Subscribe(_ => { }, () => tcs.SetResult(true));
             agent.Dispose();
             var isCompleted = await tcs.Task;
             Assert.True(isCompleted);
@@ -148,7 +148,7 @@ namespace AsyncAgentLib.Reactive.Tests
                 errorHandler: (ex, ct) => Task.FromResult(true));
 
             var allMessagesTask = agent
-                .Output.Take(1001).RunAsync(CancellationToken.None);
+                .State.Take(1001).RunAsync(CancellationToken.None);
 
             foreach(var msg in Enumerable.Repeat(1, 1000))
             {

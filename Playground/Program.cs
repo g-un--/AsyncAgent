@@ -32,7 +32,7 @@ namespace Playground
 
                     var reactiveAgent = GetNewReactiveAgent(stopwatch);
                     stopwatch.Start();
-                    var completedMessagesTask = reactiveAgent.Output.SkipWhile(state => state.ItemsCount < 1000000).FirstAsync();
+                    var completedMessagesTask = reactiveAgent.State.SkipWhile(state => state.ItemsCount < 1000000).FirstAsync();
                     foreach (var msg in Enumerable.Range(1, 1000000).AsParallel())
                     {
                         reactiveAgent.Send(msg);
