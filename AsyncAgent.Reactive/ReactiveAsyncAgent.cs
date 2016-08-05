@@ -43,7 +43,7 @@ namespace AsyncAgentLib.Reactive
                         {
                             _stateSubject.OnNext(newState);
                         }
-                        finally { }
+                        catch (Exception) { }
                     }
 
                     return newState;
@@ -59,7 +59,7 @@ namespace AsyncAgentLib.Reactive
                         {
                             _stateSubject.OnError(ex);
                         }
-                        finally { }
+                        catch (Exception) { }
                     }
 
                     return shouldContinue;
@@ -85,6 +85,7 @@ namespace AsyncAgentLib.Reactive
                 {
                     _stateSubject.OnCompleted();
                 }
+                catch (Exception) { }
                 finally
                 {
                     _stateSubject.Dispose();
