@@ -4,6 +4,8 @@ open Fake.Testing
 open System
 open System.IO
 
+Environment.CurrentDirectory <- __SOURCE_DIRECTORY__
+
 let buildDir = "./.build/"
 let testDir = "./.test/"
 let packages = !! "./**/packages.config"
