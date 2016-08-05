@@ -27,10 +27,10 @@ var agent = new ReactiveAsyncAgent<int, int>(
     },
     errorHandler: (ex, ct) => Task.FromResult(true));
 
-    agent.State.Subscribe(state =>
-    {
-        //observe state
-    });
+agent.State.Subscribe(state =>
+{
+    //observe state
+});
 
 //it is safe to send messages from multiple threads
 agent.Send(1);
