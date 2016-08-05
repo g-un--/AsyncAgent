@@ -41,8 +41,8 @@ Target "Test" (fun _ ->
         |> xUnit2 (fun p -> 
             {p with 
                 ShadowCopy = false;
-                HtmlOutputPath = Some(testDir @@ "xunit.html");
-                XmlOutputPath = Some(testDir @@ "xunit.html");
+                HtmlOutputPath = Some(testDir @@ "AsyncAgent-TestsResult.html");
+                XmlOutputPath = Some(testDir @@ "AsyncAgent-TestsResults.xml");
             })
 )
 
