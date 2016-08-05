@@ -35,5 +35,11 @@ agent.State.Subscribe(state =>
 //it is safe to send messages from multiple threads
 agent.Send(1);
 ```
+---
+### Build solution
+```
+git clone https://github.com/g-un--/AsyncAgent.git
+.\AsyncAgent\build.cmd
+```
 
 [![Build status](https://ci.appveyor.com/api/projects/status/lwlmja34mnec0hi2/branch/master?svg=true)](https://ci.appveyor.com/project/g-un--/asyncagent/branch/master)
