@@ -37,7 +37,7 @@ namespace AsyncAgentLib.Reactive
 
                     newState = await messageHandler(state, msg, ct);
 
-                    if (!ct.IsCancellationRequested && _disposed == 0)
+                    if (!ct.IsCancellationRequested && Volatile.Read(ref _disposed) == 0)
                     {
                         try
                         {
@@ -53,7 +53,7 @@ namespace AsyncAgentLib.Reactive
                     bool shouldContinue = false;
                     shouldContinue = await errorHandler(ex, ct);
 
-                    if (!shouldContinue && _disposed == 0)
+                    if (!shouldContinue && Volatile.Read(ref _disposed) == 0)
                     {
                         try
                         {
@@ -70,7 +70,7 @@ namespace AsyncAgentLib.Reactive
 
         public void Send(TMessage message)
         {
-            if (0 == _disposed)
+            if (0 == Volatile.Read(ref _disposed))
             {
                 _asyncAgent.Send(message);
             }

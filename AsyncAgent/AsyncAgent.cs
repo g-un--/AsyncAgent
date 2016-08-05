@@ -45,7 +45,7 @@ namespace AsyncAgentLib
 
         public void Send(TMessage message)
         {
-            if (_disposed == 0)
+            if (Volatile.Read(ref _disposed) == 0)
             {
                 Interlocked.Increment(ref _writers);
 
@@ -96,7 +96,7 @@ namespace AsyncAgentLib
                 {
                     Interlocked.Exchange(ref _signalSync, _writers > 0 ? 1 : 0);
 
-                    if (_signalSync == 0)
+                    if (Volatile.Read(ref _signalSync) == 0)
                         await _signal.Task;
 
                     ProcessItem();
