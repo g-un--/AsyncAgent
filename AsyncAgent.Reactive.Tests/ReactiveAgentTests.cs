@@ -19,7 +19,7 @@ namespace AsyncAgentLib.Reactive.Tests
                 new ReactiveAsyncAgent<string, string>(
                     initialState: null,
                     messageHandler: (state, msg, ct) => Task.FromResult(state),
-                    errorHandler: ex => Task.FromResult(true));
+                    errorHandler: (ex, ct) => Task.FromResult(true));
             }
             catch (ArgumentNullException ex)
             {
@@ -40,7 +40,7 @@ namespace AsyncAgentLib.Reactive.Tests
                 new ReactiveAsyncAgent<string, string>(
                     initialState: string.Empty,
                     messageHandler: null,
-                    errorHandler: ex => Task.FromResult(true));
+                    errorHandler: (ex, ct) => Task.FromResult(true));
             }
             catch (ArgumentNullException ex)
             {
@@ -85,10 +85,10 @@ namespace AsyncAgentLib.Reactive.Tests
                     ct.ThrowIfCancellationRequested();
                     return Task.FromResult(msg);
                 },
-                errorHandler: (ex) => Task.FromResult(true));
+                errorHandler: (ex, ct) => Task.FromResult(true));
 
             agent.Output.Skip(1).Take(1).Do(msg => tcs.SetResult(msg)).Subscribe();
-            agent.Input.OnNext(message);
+            agent.Send(message);
             var receivedMessage = await tcs.Task;
 
             Assert.Equal(message, receivedMessage);
@@ -106,10 +106,10 @@ namespace AsyncAgentLib.Reactive.Tests
                 {
                     throw exception;
                 },
-                errorHandler: (ex) => Task.FromResult(false));
+                errorHandler: (ex, ct) => Task.FromResult(false));
 
             agent.Output.Subscribe(_ => { }, ex => tcs.SetResult(ex));
-            agent.Input.OnNext(string.Empty);
+            agent.Send(string.Empty);
             var receivedException = await tcs.Task;
 
             Assert.Equal(exception, receivedException);
@@ -126,10 +126,10 @@ namespace AsyncAgentLib.Reactive.Tests
                 {
                     return Task.FromResult(msg); 
                 },
-                errorHandler: (ex) => Task.FromResult(true));
+                errorHandler: (ex, ct) => Task.FromResult(true));
 
             agent.Output.Subscribe(_ => { }, () => tcs.SetResult(true));
-            agent.Input.OnCompleted();
+            agent.Dispose();
             var isCompleted = await tcs.Task;
             Assert.True(isCompleted);
         }
@@ -145,14 +145,14 @@ namespace AsyncAgentLib.Reactive.Tests
                 {
                     return Task.FromResult(state + 1);
                 },
-                errorHandler: (ex) => Task.FromResult(true));
+                errorHandler: (ex, ct) => Task.FromResult(true));
 
             var allMessagesTask = agent
                 .Output.Take(1001).RunAsync(CancellationToken.None);
 
             foreach(var msg in Enumerable.Repeat(1, 1000))
             {
-                agent.Input.OnNext(1000);
+                agent.Send(1000);
             }
 
             var latestState = await allMessagesTask;
@@ -171,13 +171,13 @@ namespace AsyncAgentLib.Reactive.Tests
                 {
                     return Task.FromResult(state + 1);
                 },
-                errorHandler: (ex) => Task.FromResult(true));
+                errorHandler: (ex, ct) => Task.FromResult(true));
 
             try
             {
                 agent.Dispose();
                 agent.Dispose();
-                agent.Input.OnNext(1);
+                agent.Send(1);
             }
             catch(Exception ex)
             {

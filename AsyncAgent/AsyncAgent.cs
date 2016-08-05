@@ -8,7 +8,7 @@ namespace AsyncAgentLib
     public class AsyncAgent<TState, TMessage> : IDisposable
     {
         private ConcurrentQueue<TMessage> _workItems;
-        private Func<Exception, Task<bool>> _errorHandler;
+        private Func<Exception, CancellationToken, Task<bool>> _errorHandler;
         private TState _currentState;
         private Func<TState, TMessage, CancellationToken, Task<TState>> _messageHandler;
         private CancellationTokenSource _cts;
@@ -20,7 +20,7 @@ namespace AsyncAgentLib
         public AsyncAgent(
             TState initialState, 
             Func<TState, TMessage, CancellationToken, Task<TState>> messageHandler,
-            Func<Exception, Task<bool>> errorHandler)
+            Func<Exception, CancellationToken, Task<bool>> errorHandler)
         {
             if (initialState == null)
                 throw new ArgumentNullException(nameof(initialState));
@@ -45,7 +45,7 @@ namespace AsyncAgentLib
 
         public void Send(TMessage message)
         {
-            if (0 == Interlocked.CompareExchange(ref _disposed, 0, 0))
+            if (_disposed == 0)
             {
                 Interlocked.Increment(ref _writers);
 
@@ -80,7 +80,7 @@ namespace AsyncAgentLib
                         }
                         catch (Exception ex)
                         {
-                            shouldContinue = await _errorHandler(ex);
+                            shouldContinue = await _errorHandler(ex, _cts.Token);
                             if (!shouldContinue)
                                 break;
                         }

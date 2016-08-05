@@ -18,7 +18,7 @@ namespace AsyncAgentLib.Tests
                 new AsyncAgent<string, string>(
                     initialState: null, 
                     messageHandler: (state, msg, ct) => Task.FromResult(state),
-                    errorHandler: ex => Task.FromResult(true));
+                    errorHandler: (ex, ct) => Task.FromResult(true));
             }
             catch (ArgumentNullException ex)
             {
@@ -39,7 +39,7 @@ namespace AsyncAgentLib.Tests
                 new AsyncAgent<string, string>(
                     initialState: string.Empty,
                     messageHandler: null,
-                    errorHandler: ex => Task.FromResult(true));
+                    errorHandler: (ex, ct) => Task.FromResult(true));
             }
             catch (ArgumentNullException ex)
             {
@@ -84,7 +84,7 @@ namespace AsyncAgentLib.Tests
                     tcs.SetResult(msg);
                     return state;
                 },
-                ex => Task.FromResult(true));
+                (ex, ct) => Task.FromResult(true));
 
             agent.Send(message);
             var processedMessage = await tcs.Task;
@@ -105,7 +105,7 @@ namespace AsyncAgentLib.Tests
                     await Task.Delay(0, ct);
                     throw exception;
                 },
-                errorHandler: ex =>
+                errorHandler: (ex, ct) =>
                 {
                     tcs.SetResult(ex);
                     return Task.FromResult(true);
@@ -129,7 +129,7 @@ namespace AsyncAgentLib.Tests
                     tcs.SetResult(msg);
                     return state;
                 },
-                errorHandler: ex => Task.FromResult(true));
+                errorHandler: (ex, ct) => Task.FromResult(true));
 
             agent.Dispose();
             agent.Send(1);
@@ -166,7 +166,7 @@ namespace AsyncAgentLib.Tests
 
                     return state;
                 },
-                errorHandler: ex =>
+                errorHandler: (ex, ct) =>
                 {
                     thrownException = ex;
                     return Task.FromResult(true);

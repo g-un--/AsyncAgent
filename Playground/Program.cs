@@ -32,16 +32,15 @@ namespace Playground
 
                     var reactiveAgent = GetNewReactiveAgent(stopwatch);
                     stopwatch.Start();
-                    var completedMessagesTask = reactiveAgent.Output
-                        .SkipWhile(state => state.ItemsCount < 1000000)
-                        .FirstAsync();
+                    var completedMessagesTask = reactiveAgent.Output.SkipWhile(state => state.ItemsCount < 1000000).FirstAsync();
                     foreach (var msg in Enumerable.Range(1, 1000000).AsParallel())
                     {
-                        reactiveAgent.Input.OnNext(msg);
+                        reactiveAgent.Send(msg);
                     }
                     var latestState = await completedMessagesTask;
                     stopwatch.Stop();
                     WriteLine($"ReactiveAsyncAgent -> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+
                     stopwatch.Reset();
                     reactiveAgent.Dispose();
                     await Task.Delay(1000, ct);
@@ -52,6 +51,7 @@ namespace Playground
                     {
                         asyncAgent.Send(msg);
                     }
+
                     await Task.Delay(1000, ct);
                     stopwatch.Reset();
                     asyncAgent.Dispose();
@@ -73,9 +73,9 @@ namespace Playground
             public long Sum { get; set; }
         }
 
-        static ReactiveAsyncAgent<AgentState, long> GetNewReactiveAgent(Stopwatch stopwatch)
+        static ReactiveAsyncAgent<AgentState, int> GetNewReactiveAgent(Stopwatch stopwatch)
         {
-            return new ReactiveAsyncAgent<AgentState, long>(
+            return new ReactiveAsyncAgent<AgentState, int>(
                 initialState: new AgentState { ItemsCount = 0, Sum = 0 },
                 messageHandler: (state, msg, ct) =>
                 {
@@ -86,12 +86,12 @@ namespace Playground
 
                     return Task.FromResult(state);
                 },
-                errorHandler: ex => Task.FromResult(false));
+                errorHandler: (ex, ct) => Task.FromResult(false));
         }
 
-        static AsyncAgent<AgentState, long> GetNewAgent(Stopwatch stopwatch)
+        static AsyncAgent<AgentState, int> GetNewAgent(Stopwatch stopwatch)
         {
-            return new AsyncAgent<AgentState, long>(
+            return new AsyncAgent<AgentState, int>(
                 initialState: new AgentState { ItemsCount = 0, Sum = 0 },
                 messageHandler: (state, msg, ct) =>
                 {
@@ -111,7 +111,7 @@ namespace Playground
 
                     return Task.FromResult(state);
                 },
-                errorHandler: ex => Task.FromResult(false));
+                errorHandler: (ex, ct) => Task.FromResult(false));
         }
     }
 }

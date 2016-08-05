@@ -9,7 +9,7 @@ var agent = new AsyncAgent<int, int>(
         await Task.Delay(0, ct);
         return state + msg;
     },
-    errorHandler: (ex) => Task.FromResult(true));
+    errorHandler: (ex, ct) => Task.FromResult(true));
 
 //it is safe to send messages from multiple threads
 agent.Send(1);

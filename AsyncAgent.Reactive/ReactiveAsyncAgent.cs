@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Reactive;
-using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Threading;
@@ -10,15 +8,16 @@ namespace AsyncAgentLib.Reactive
 {
     public class ReactiveAsyncAgent<TState, TMessage> : IDisposable
     {
-        private readonly IDisposable _disposables;
+        private int _disposed;
+        private readonly BehaviorSubject<TState> _stateSubject;
+        private readonly AsyncAgent<TState, TMessage> _asyncAgent;
 
-        public IObserver<TMessage> Input { get; private set; }
         public IObservable<TState> Output { get; private set; }
 
         public ReactiveAsyncAgent(
             TState initialState,
             Func<TState, TMessage, CancellationToken, Task<TState>> messageHandler,
-            Func<Exception, Task<bool>> errorHandler)
+            Func<Exception, CancellationToken, Task<bool>> errorHandler)
         {
             if (initialState == null)
                 throw new ArgumentNullException(nameof(initialState));
@@ -29,46 +28,68 @@ namespace AsyncAgentLib.Reactive
             if (errorHandler == null)
                 throw new ArgumentNullException(nameof(errorHandler));
 
-            BehaviorSubject<TState> stateSubject = new BehaviorSubject<TState>(initialState);
-            var asyncAgent = new AsyncAgent<TState, TMessage>(
+            _stateSubject = new BehaviorSubject<TState>(initialState);
+            _asyncAgent = new AsyncAgent<TState, TMessage>(
                 initialState: initialState,
                 messageHandler: async (state, msg, ct) =>
                 {
-                    var newState = await messageHandler(state, msg, ct);
-                    stateSubject.OnNext(newState);
+                    TState newState = state;
+
+                    newState = await messageHandler(state, msg, ct);
+
+                    if (!ct.IsCancellationRequested && _disposed == 0)
+                    {
+                        try
+                        {
+                            _stateSubject.OnNext(newState);
+                        }
+                        finally { }
+                    }
+
                     return newState;
                 },
-                errorHandler: async ex =>
+                errorHandler: async (ex, ct) =>
                 {
-                    bool shouldContinue = await errorHandler(ex);
-                    if (!shouldContinue)
+                    bool shouldContinue = false;
+                    shouldContinue = await errorHandler(ex, ct);
+
+                    if (!shouldContinue && _disposed == 0)
                     {
-                        stateSubject.OnError(ex);
+                        try
+                        {
+                            _stateSubject.OnError(ex);
+                        }
+                        finally { }
                     }
+
                     return shouldContinue;
                 });
 
-            var agentDisposable = Disposable.Create(() => asyncAgent.Dispose());
-            var stateDisposable = Disposable.Create(() => stateSubject.Dispose());
+            Output = _stateSubject.AsObservable();
+        }
 
-            Input = Observer.Create<TMessage>(
-                onNext: message => asyncAgent.Send(message),
-                onError: ex =>
-                {
-                    stateSubject.OnError(ex);
-                },
-                onCompleted: () =>
-                {
-                    stateSubject.OnCompleted();
-                });
-            Output = stateSubject.AsObservable();
-
-            _disposables = new CompositeDisposable(stateDisposable, agentDisposable);
+        public void Send(TMessage message)
+        {
+            if (0 == _disposed)
+            {
+                _asyncAgent.Send(message);
+            }
         }
 
         public void Dispose()
         {
-            _disposables.Dispose();
+            if (0 == Interlocked.Exchange(ref _disposed, 1))
+            {
+                _asyncAgent.Dispose();
+                try
+                {
+                    _stateSubject.OnCompleted();
+                }
+                finally
+                {
+                    _stateSubject.Dispose();
+                }
+            }
         }
     }
 }
