@@ -1,5 +1,5 @@
 # AsyncAgent
-An agent which executes a Func&lt;TState, TMessage, CancellationToken, Task&lt;TState>> for each message from a ConcurrentQueue&lt;T>, accumulating an internal state.
+An agent which executes a Func&lt;TState, T, CancellationToken, Task&lt;TState>> for each message from a ConcurrentQueue&lt;T>, accumulating an internal state.
 ```
 var agent = new AsyncAgent<int, int>(
     initialState: 0,
