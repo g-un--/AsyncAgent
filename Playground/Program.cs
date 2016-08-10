@@ -30,31 +30,8 @@ namespace Playground
                 {
                     test += 1;
 
-                    var reactiveAgent = GetNewReactiveAgent(stopwatch);
-                    stopwatch.Start();
-                    var completedMessagesTask = reactiveAgent.State.SkipWhile(state => state.ItemsCount < 1000000).FirstAsync();
-                    foreach (var msg in Enumerable.Range(1, 1000000))
-                    {
-                        reactiveAgent.Send(msg);
-                    }
-                    var latestState = await completedMessagesTask;
-                    stopwatch.Stop();
-                    WriteLine($"ReactiveAsyncAgent -> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
-
-                    stopwatch.Reset();
-                    reactiveAgent.Dispose();
-                    await Task.Delay(1000, ct);
-
-                    var asyncAgent = GetNewAgent(stopwatch);
-                    stopwatch.Start();
-                    foreach (var msg in Enumerable.Range(1, 1000000))
-                    {
-                        asyncAgent.Send(msg);
-                    }
-
-                    await Task.Delay(1000, ct);
-                    stopwatch.Reset();
-                    asyncAgent.Dispose();
+                    await TestReactiveAsyncAgent(stopwatch, ct);
+                    await TestAsyncAgent(stopwatch, ct);
 
                     if (test % 10 == 0)
                     {
@@ -65,6 +42,24 @@ namespace Playground
                     }
                 }
             }, ct);
+        }
+
+        static async Task TestReactiveAsyncAgent(Stopwatch stopwatch, CancellationToken ct)
+        {
+            var reactiveAgent = GetNewReactiveAgent(stopwatch);
+            stopwatch.Start();
+            var completedMessagesTask = reactiveAgent.State.SkipWhile(state => state.ItemsCount < 1000000).FirstAsync();
+            foreach (var msg in Enumerable.Range(1, 1000000))
+            {
+                reactiveAgent.Send(msg);
+            }
+            var latestState = await completedMessagesTask;
+            stopwatch.Stop();
+            WriteLine($"ReactiveAsyncAgent -> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+
+            stopwatch.Reset();
+            reactiveAgent.Dispose();
+            await Task.Delay(1000, ct);
         }
 
         struct AgentState
@@ -87,6 +82,20 @@ namespace Playground
                     return Task.FromResult(state);
                 },
                 errorHandler: (ex, ct) => Task.FromResult(false));
+        }
+
+        static async Task TestAsyncAgent(Stopwatch stopwatch, CancellationToken ct)
+        {
+            var asyncAgent = GetNewAgent(stopwatch);
+            stopwatch.Start();
+            foreach (var msg in Enumerable.Range(1, 1000000))
+            {
+                asyncAgent.Send(msg);
+            }
+
+            await Task.Delay(1000, ct);
+            stopwatch.Reset();
+            asyncAgent.Dispose();
         }
 
         static AsyncAgent<AgentState, int> GetNewAgent(Stopwatch stopwatch)
