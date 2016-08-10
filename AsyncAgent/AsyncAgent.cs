@@ -13,12 +13,12 @@ namespace AsyncAgentLib
         private Func<TState, TMessage, CancellationToken, Task<TState>> _messageHandler;
         private CancellationTokenSource _cts;
         private TaskCompletionSource<bool> _signal;
-        private int _signalSync;
-        private int _writers;
+        private int _messagesCounter;
         private int _disposed;
+        private Task _latestTask;
 
         public AsyncAgent(
-            TState initialState, 
+            TState initialState,
             Func<TState, TMessage, CancellationToken, Task<TState>> messageHandler,
             Func<Exception, CancellationToken, Task<bool>> errorHandler)
         {
@@ -37,71 +37,72 @@ namespace AsyncAgentLib
             _errorHandler = errorHandler;
             _signal = new TaskCompletionSource<bool>();
             _cts = new CancellationTokenSource();
-            _signalSync = 0;
+            _messagesCounter = 0;
             _disposed = 0;
-            _writers = 0;
-            ProcessItem();
+            ProcessItem(_cts.Token);
         }
 
         public void Send(TMessage message)
         {
-            if (Volatile.Read(ref _disposed) == 0)
+            if (Interlocked.CompareExchange(ref _disposed, 0, 0) == 1)
+                return;
+
+            if (1 == Interlocked.Increment(ref _messagesCounter))
             {
-                Interlocked.Increment(ref _writers);
-
                 _workItems.Enqueue(message);
-
-                if (0 == Interlocked.Exchange(ref _signalSync, 1))
-                {
-                    _signal.TrySetResult(true);
-                }
-
-                Interlocked.Decrement(ref _writers);
+                _signal.TrySetResult(true);
+            }
+            else
+            {
+                _workItems.Enqueue(message);
             }
         }
 
-        private void ProcessItem()
+        private void ProcessItem(CancellationToken ct)
         {
-            Task.Run(async () =>
+            if (ct.IsCancellationRequested)
+                return;
+
+            _latestTask = Task.Run(async () =>
             {
-                if (1 == Interlocked.CompareExchange(ref _signalSync, 1, 1))
+                if (Interlocked.CompareExchange(ref _messagesCounter, _messagesCounter, _messagesCounter) > 0)
                 {
-                    if(_signal.Task.IsCompleted)
+                    if (_signal.Task.IsCompleted)
                         _signal = new TaskCompletionSource<bool>();
 
                     TMessage item;
                     bool shouldContinue = true;
 
-                    while (!_cts.IsCancellationRequested && _workItems.TryDequeue(out item))
+                    while (_workItems.TryDequeue(out item) && !ct.IsCancellationRequested)
                     {
                         try
                         {
-                            _currentState = await _messageHandler(_currentState, item, _cts.Token);
+                            _currentState = await _messageHandler(_currentState, item, ct);
                         }
                         catch (Exception ex)
                         {
-                            shouldContinue = await _errorHandler(ex, _cts.Token);
-                            if (!shouldContinue)
-                                break;
+                            shouldContinue = await _errorHandler(ex, ct);
                         }
+                        finally
+                        {
+                            Interlocked.Decrement(ref _messagesCounter);
+                        }
+
+                        if (!shouldContinue)
+                            break;
                     }
 
-                    if (shouldContinue)
+                    if (shouldContinue && !ct.IsCancellationRequested)
                     {
-                        Interlocked.Exchange(ref _signalSync, _writers > 0 ? 1 : 0);
-                        ProcessItem();
+                        ProcessItem(ct);
                     }
                 }
                 else
                 {
-                    Interlocked.Exchange(ref _signalSync, _writers > 0 ? 1 : 0);
-
-                    if (Volatile.Read(ref _signalSync) == 0)
-                        await _signal.Task;
-
-                    ProcessItem();
+                    if (await _signal.Task && !ct.IsCancellationRequested)
+                        ProcessItem(ct);
                 }
-            }, _cts.Token);
+            }, ct);
         }
 
         public void Dispose()
@@ -110,6 +111,12 @@ namespace AsyncAgentLib
             {
                 _cts.Cancel();
                 _signal.TrySetResult(false);
+                if (Interlocked.CompareExchange(ref _latestTask, _latestTask, _latestTask) != _latestTask)
+                {
+                    SpinWait.SpinUntil(() => 
+                        Interlocked.CompareExchange(ref _latestTask, _latestTask, _latestTask) == _latestTask);
+                }
+                _latestTask.ContinueWith(_ => _cts.Dispose());
             }
         }
     }

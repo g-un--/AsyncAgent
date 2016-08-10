@@ -37,14 +37,8 @@ namespace AsyncAgentLib.Reactive
 
                     newState = await messageHandler(state, msg, ct);
 
-                    if (!ct.IsCancellationRequested && Volatile.Read(ref _disposed) == 0)
-                    {
-                        try
-                        {
-                            _stateSubject.OnNext(newState);
-                        }
-                        catch (Exception) { }
-                    }
+                    if (!ct.IsCancellationRequested)
+                        _stateSubject.OnNext(newState);
 
                     return newState;
                 },
@@ -53,14 +47,8 @@ namespace AsyncAgentLib.Reactive
                     bool shouldContinue = false;
                     shouldContinue = await errorHandler(ex, ct);
 
-                    if (!shouldContinue && Volatile.Read(ref _disposed) == 0)
-                    {
-                        try
-                        {
+                    if (!shouldContinue && !ct.IsCancellationRequested)
                             _stateSubject.OnError(ex);
-                        }
-                        catch (Exception) { }
-                    }
 
                     return shouldContinue;
                 });
@@ -70,10 +58,7 @@ namespace AsyncAgentLib.Reactive
 
         public void Send(TMessage message)
         {
-            if (0 == Volatile.Read(ref _disposed))
-            {
-                _asyncAgent.Send(message);
-            }
+            _asyncAgent.Send(message);
         }
 
         public void Dispose()
@@ -81,15 +66,8 @@ namespace AsyncAgentLib.Reactive
             if (0 == Interlocked.Exchange(ref _disposed, 1))
             {
                 _asyncAgent.Dispose();
-                try
-                {
-                    _stateSubject.OnCompleted();
-                }
-                catch (Exception) { }
-                finally
-                {
-                    _stateSubject.Dispose();
-                }
+                _stateSubject.OnCompleted();
+                _stateSubject.Dispose();
             }
         }
     }
