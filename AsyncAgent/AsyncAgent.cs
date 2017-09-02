@@ -12,10 +12,10 @@ namespace AsyncAgentLib
         private TState _currentState;
         private Func<TState, TMessage, CancellationToken, Task<TState>> _messageHandler;
         private CancellationTokenSource _cts;
-        private TaskCompletionSource<bool> _signal;
+        private volatile TaskCompletionSource<bool> _signal;
         private int _messagesCounter;
         private int _disposed;
-        private Task _latestTask;
+        private volatile Task _latestTask;
 
         public AsyncAgent(
             TState initialState,
@@ -109,14 +109,20 @@ namespace AsyncAgentLib
         {
             if (0 == Interlocked.Exchange(ref _disposed, 1))
             {
-                _cts.Cancel();
-                _signal.TrySetResult(false);
-                if (Interlocked.CompareExchange(ref _latestTask, _latestTask, _latestTask) != _latestTask)
+                try { }
+                finally
                 {
-                    SpinWait.SpinUntil(() => 
-                        Interlocked.CompareExchange(ref _latestTask, _latestTask, _latestTask) == _latestTask);
+                    _cts.Cancel();
+                    _signal.TrySetResult(false);
+                    SpinWait spin = new SpinWait();
+                    var latestTask = _latestTask;
+                    while (latestTask != _latestTask)
+                    {
+                        spin.SpinOnce();
+                        latestTask = _latestTask;
+                    }
+                    latestTask.ContinueWith(_ => _cts.Dispose());
                 }
-                _latestTask.ContinueWith(_ => _cts.Dispose());
             }
         }
     }

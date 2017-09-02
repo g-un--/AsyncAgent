@@ -30,8 +30,9 @@ namespace Playground
                 {
                     test += 1;
 
-                    await TestReactiveAsyncAgent(stopwatch, ct);
+                    await TestReactiveAsyncAgent(stopwatch, ct, "ReactiveAsyncAgent");
                     await TestAsyncAgent(stopwatch, ct);
+                    await TestAsyncAgentWithTwoParallelPushers(stopwatch, ct);
 
                     if (test % 10 == 0)
                     {
@@ -44,7 +45,7 @@ namespace Playground
             }, ct);
         }
 
-        static async Task TestReactiveAsyncAgent(Stopwatch stopwatch, CancellationToken ct)
+        static async Task TestReactiveAsyncAgent(Stopwatch stopwatch, CancellationToken ct, string name)
         {
             var reactiveAgent = GetNewReactiveAgent(stopwatch);
             stopwatch.Start();
@@ -55,7 +56,7 @@ namespace Playground
             }
             var latestState = await completedMessagesTask;
             stopwatch.Stop();
-            WriteLine($"ReactiveAsyncAgent -> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+            WriteLine($"{name}{new string(' ', 30 - name.Length) }-> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
 
             stopwatch.Reset();
             reactiveAgent.Dispose();
@@ -86,7 +87,7 @@ namespace Playground
 
         static async Task TestAsyncAgent(Stopwatch stopwatch, CancellationToken ct)
         {
-            var asyncAgent = GetNewAgent(stopwatch);
+            var asyncAgent = GetNewAgent(stopwatch, "AsyncAgent");
             stopwatch.Start();
             foreach (var msg in Enumerable.Range(1, 1000000))
             {
@@ -98,7 +99,33 @@ namespace Playground
             asyncAgent.Dispose();
         }
 
-        static AsyncAgent<AgentState, int> GetNewAgent(Stopwatch stopwatch)
+        static async Task TestAsyncAgentWithTwoParallelPushers(Stopwatch stopwatch, CancellationToken ct)
+        {
+            var asyncAgent = GetNewAgent(stopwatch, "AsyncAgent2Pushers");
+            stopwatch.Start();
+
+            await Task.WhenAll(
+                Task.Run(() =>
+                {
+                    foreach (var msg in Enumerable.Range(1, 500000))
+                    {
+                        asyncAgent.Send(msg);
+                    }
+                }), 
+                Task.Run(() =>
+                {
+                    foreach (var msg in Enumerable.Range(500001, 500000))
+                    {
+                        asyncAgent.Send(msg);
+                    }
+                }));
+
+            await Task.Delay(1000, ct);
+            stopwatch.Reset();
+            asyncAgent.Dispose();
+        }
+
+        static AsyncAgent<AgentState, int> GetNewAgent(Stopwatch stopwatch, string name)
         {
             return new AsyncAgent<AgentState, int>(
                 initialState: new AgentState { ItemsCount = 0, Sum = 0 },
@@ -112,7 +139,7 @@ namespace Playground
                     if (state.ItemsCount == 1000000)
                     {
                         stopwatch.Stop();
-                        WriteLine($"AsyncAgent         -> Sum for: [1..{state.ItemsCount}], Sum: {state.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+                        WriteLine($"{name}{new string(' ', 30 - name.Length)}-> Sum for: [1..{state.ItemsCount}], Sum: {state.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
                         stopwatch.Reset();
                         state.ItemsCount = 0;
                         state.Sum = 0;
