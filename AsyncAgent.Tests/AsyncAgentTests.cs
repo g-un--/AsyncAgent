@@ -9,27 +9,6 @@ namespace AsyncAgentLib.Tests
     public class AsyncAgentTests
     {
         [Fact]
-        public void AgentThrowsArgumentNullExceptionForInitialState()
-        {
-            ArgumentNullException thrownException = null;
-
-            try
-            {
-                new AsyncAgent<string, string>(
-                    initialState: null, 
-                    messageHandler: (state, msg, ct) => Task.FromResult(state),
-                    errorHandler: (ex, ct) => Task.FromResult(true));
-            }
-            catch (ArgumentNullException ex)
-            {
-                thrownException = ex;
-            }
-
-            Assert.NotNull(thrownException);
-            Assert.True(string.CompareOrdinal(thrownException.ParamName, "initialState") == 0);
-        }
-
-        [Fact]
         public void AgentThrowsArgumentNullExceptionForMessageHandler()
         {
             ArgumentNullException thrownException = null;

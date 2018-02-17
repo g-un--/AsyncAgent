@@ -19,9 +19,6 @@ namespace AsyncAgentLib.Reactive
             Func<TState, TMessage, CancellationToken, Task<TState>> messageHandler,
             Func<Exception, CancellationToken, Task<bool>> errorHandler)
         {
-            if (initialState == null)
-                throw new ArgumentNullException(nameof(initialState));
-
             if (messageHandler == null)
                 throw new ArgumentNullException(nameof(messageHandler));
 

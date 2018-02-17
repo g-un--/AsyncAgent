@@ -12,29 +12,19 @@ namespace AsyncAgentLib
         private TState _currentState;
         private Func<TState, TMessage, CancellationToken, Task<TState>> _messageHandler;
         private CancellationTokenSource _cts;
-        private volatile TaskCompletionSource<bool> _signal;
         private int _messagesCounter;
         private int _disposed;
-        private volatile Task _latestTask;
+        private volatile TaskCompletionSource<bool> _signal;
 
         public AsyncAgent(
             TState initialState,
             Func<TState, TMessage, CancellationToken, Task<TState>> messageHandler,
             Func<Exception, CancellationToken, Task<bool>> errorHandler)
         {
-            if (initialState == null)
-                throw new ArgumentNullException(nameof(initialState));
-
-            if (messageHandler == null)
-                throw new ArgumentNullException(nameof(messageHandler));
-
-            if (errorHandler == null)
-                throw new ArgumentNullException(nameof(errorHandler));
-
-            _workItems = new ConcurrentQueue<TMessage>();
             _currentState = initialState;
-            _messageHandler = messageHandler;
-            _errorHandler = errorHandler;
+            _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));
+            _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+            _workItems = new ConcurrentQueue<TMessage>();
             _signal = new TaskCompletionSource<bool>();
             _cts = new CancellationTokenSource();
             _messagesCounter = 0;
@@ -63,17 +53,16 @@ namespace AsyncAgentLib
             if (ct.IsCancellationRequested)
                 return;
 
-            _latestTask = Task.Run(async () =>
+            Task.Run(async () =>
             {
                 if (Interlocked.CompareExchange(ref _messagesCounter, _messagesCounter, _messagesCounter) > 0)
                 {
                     if (_signal.Task.IsCompleted)
                         _signal = new TaskCompletionSource<bool>();
 
-                    TMessage item;
                     bool shouldContinue = true;
 
-                    while (_workItems.TryDequeue(out item) && !ct.IsCancellationRequested)
+                    while (_workItems.TryDequeue(out TMessage item) && !ct.IsCancellationRequested)
                     {
                         try
                         {
@@ -114,14 +103,7 @@ namespace AsyncAgentLib
                 {
                     _cts.Cancel();
                     _signal.TrySetResult(false);
-                    SpinWait spin = new SpinWait();
-                    var latestTask = _latestTask;
-                    while (latestTask != _latestTask)
-                    {
-                        spin.SpinOnce();
-                        latestTask = _latestTask;
-                    }
-                    latestTask.ContinueWith(_ => _cts.Dispose());
+                    _cts.Dispose();
                 }
             }
         }
