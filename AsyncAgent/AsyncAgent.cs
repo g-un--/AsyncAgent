@@ -55,11 +55,11 @@ namespace AsyncAgentLib
 
             Task.Run(async () =>
             {
-                if (Interlocked.CompareExchange(ref _messagesCounter, _messagesCounter, _messagesCounter) > 0)
-                {
-                    if (_signal.Task.IsCompleted)
-                        _signal = new TaskCompletionSource<bool>();
+                if (_signal.Task.IsCompleted)
+                    _signal = new TaskCompletionSource<bool>();
 
+                if (Interlocked.CompareExchange(ref _messagesCounter, 0, 0) > 0)
+                {
                     bool shouldContinue = true;
 
                     while (_workItems.TryDequeue(out TMessage item) && !ct.IsCancellationRequested)

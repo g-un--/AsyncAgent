@@ -1,5 +1,7 @@
 ﻿using AsyncAgentLib;
 using AsyncAgentLib.Reactive;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reactive.Linq;
@@ -13,13 +15,49 @@ namespace Playground
     {
         static void Main(string[] args)
         {
+            TestMultipleAgentsPerformance();
             var tokenSource = new CancellationTokenSource();
-            TestPerformance(tokenSource.Token);
+            TestSingleAgentPerformance(tokenSource.Token);
             ReadLine();
             tokenSource.Cancel();
         }
 
-        private static Task TestPerformance(CancellationToken ct)
+        private static void TestMultipleAgentsPerformance()
+        {
+            var agents = Enumerable.Range(1, 100000).Select(x =>
+                            new ReactiveAsyncAgent<int, int>(
+                                0,
+                                (state, msg, ct) => Task.FromResult(state + msg),
+                                (_, ct) => Task.FromResult(true))).ToArray();
+
+            var stopwatch = new Stopwatch();
+            stopwatch.Start();
+
+            var threadLocal = new ThreadLocal<int>(() => Thread.CurrentThread.ManagedThreadId, true);
+            Parallel.ForEach(agents, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, agent =>
+            {
+                if (threadLocal.Value > 0)
+                {
+                    for (var msg = 1; msg <= 100; msg += 1)
+                    {
+                        agent.Send(msg);
+                    }
+                }
+            });
+
+            Task.WhenAll(agents.Select(async x => await x.State.Where(state => state == 5050).Take(1))).Wait();
+
+            stopwatch.Stop();
+            WriteLine($"Send & Process 10 mil msgs to 100 000 agents            -> NrOfSenders: {threadLocal.Values.Count}, Time: {stopwatch.ElapsedMilliseconds}ms");
+
+            threadLocal.Dispose();
+            foreach(var agent in agents)
+            {
+                agent.Dispose();
+            }
+        }
+
+        private static Task TestSingleAgentPerformance(CancellationToken ct)
         {
             return Task.Run(async () =>
             {
@@ -111,7 +149,7 @@ namespace Playground
                     {
                         asyncAgent.Send(msg);
                     }
-                }), 
+                }),
                 Task.Run(() =>
                 {
                     foreach (var msg in Enumerable.Range(500001, 500000))
@@ -132,7 +170,6 @@ namespace Playground
                 messageHandler: (state, msg, ct) =>
                 {
                     ct.ThrowIfCancellationRequested();
-
                     state.Sum += msg;
                     state.ItemsCount = state.ItemsCount + 1;
 
