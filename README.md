@@ -1,5 +1,5 @@
 # AsyncAgent
-An agent which executes a Func&lt;TState, T, CancellationToken, Task&lt;TState>> for each message from a ConcurrentQueue&lt;T>, accumulating an internal state.
+Actor which executes a Func&lt;TState, T, CancellationToken, Task&lt;TState>> for each message from a ConcurrentQueue&lt;T>, accumulating an internal state.
 ```
 var agent = new AsyncAgent<int, int>(
     initialState: 0,
@@ -15,7 +15,7 @@ var agent = new AsyncAgent<int, int>(
 agent.Send(1);
 ```
 # ReactiveAsyncAgent
-An AsyncAgent with an IObservable&lt;State>
+AsyncAgent with an IObservable&lt;State>
 ```
 var agent = new ReactiveAsyncAgent<int, int>(
     initialState: 0,
