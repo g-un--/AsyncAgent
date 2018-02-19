@@ -1,7 +1,6 @@
 ﻿using AsyncAgentLib;
 using AsyncAgentLib.Reactive;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reactive.Linq;
@@ -15,9 +14,14 @@ namespace Playground
     {
         static void Main(string[] args)
         {
+            var result = SkynetBenchmark.Run().Result;
+            WriteLine($"Skynet benchmark -> Answer: {result.Item1}, Time: {result.Item2}ms");
+
             TestMultipleAgentsPerformance();
+
             var tokenSource = new CancellationTokenSource();
             TestSingleAgentPerformance(tokenSource.Token);
+
             ReadLine();
             tokenSource.Cancel();
         }
@@ -48,10 +52,10 @@ namespace Playground
             Task.WhenAll(agents.Select(async x => await x.State.Where(state => state == 5050).Take(1))).Wait();
 
             stopwatch.Stop();
-            WriteLine($"Send & Process 10 mil msgs to 100 000 agents            -> NrOfSenders: {threadLocal.Values.Count}, Time: {stopwatch.ElapsedMilliseconds}ms");
+            WriteLine($"Send & Process 10 mil msgs to 100 000 agents -> NrOfSenders: {threadLocal.Values.Count}, Time: {stopwatch.ElapsedMilliseconds}ms");
 
             threadLocal.Dispose();
-            foreach(var agent in agents)
+            foreach (var agent in agents)
             {
                 agent.Dispose();
             }
@@ -94,7 +98,7 @@ namespace Playground
             }
             var latestState = await completedMessagesTask;
             stopwatch.Stop();
-            WriteLine($"{name}{new string(' ', 30 - name.Length) }-> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+            WriteLine($"{name}{new string(' ', 20 - name.Length) }-> Sum for: [1..{latestState.ItemsCount}], Sum: {latestState.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
 
             stopwatch.Reset();
             reactiveAgent.Dispose();
@@ -176,7 +180,7 @@ namespace Playground
                     if (state.ItemsCount == 1000000)
                     {
                         stopwatch.Stop();
-                        WriteLine($"{name}{new string(' ', 30 - name.Length)}-> Sum for: [1..{state.ItemsCount}], Sum: {state.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
+                        WriteLine($"{name}{new string(' ', 20 - name.Length)}-> Sum for: [1..{state.ItemsCount}], Sum: {state.Sum}, Time: {stopwatch.ElapsedMilliseconds}ms");
                         stopwatch.Reset();
                         state.ItemsCount = 0;
                         state.Sum = 0;
