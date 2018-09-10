@@ -10,4 +10,4 @@ IF NOT EXIST ".\packages\FAKE\" (
     NuGet.exe "Install" "FAKE" "-OutputDirectory" "packages" "-ExcludeVersion"  
 )
 
-"packages\FAKE\tools\Fake.exe" build.fsx %*
+"packages\FAKE\tools\Fake.exe" --removeLegacyFakeWarning build.fsx %*

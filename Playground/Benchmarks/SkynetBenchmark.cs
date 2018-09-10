@@ -1,32 +1,38 @@
 ﻿using AsyncAgentLib;
+using BenchmarkDotNet.Attributes;
 using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace Playground
 {
-    public static class SkynetBenchmark
+    [MemoryDiagnoser]
+    [IterationCount(10)]
+    [WarmupCount(1)]
+    public class SkynetBenchmark
     {
-        public static Task<Tuple<long, long>> Run()
+        [Benchmark]
+        public void Run()
         {
-            var tcs = new TaskCompletionSource<Tuple<long, long>>();
-            var stopwatch = new Stopwatch();
-            stopwatch.Start();
+            var tcs = new TaskCompletionSource<long>();
 
             LaunchSkynet(0, 1000000, (rez) =>
             {
-                stopwatch.Stop();
-                tcs.SetResult(new Tuple<long, long>(rez, stopwatch.ElapsedMilliseconds));
+                tcs.SetResult(rez);
             });
 
-            return tcs.Task;
+            tcs.Task.Wait();
+
+            if (tcs.Task.Result != 499999500000)
+            {
+                throw new Exception("The answer should be 499999500000");
+            }
         }
 
         /// <summary>
         /// https://github.com/atemerev/skynet
         /// https://github.com/atemerev/skynet/blob/master/fsharp_agent/skynet.fsx
         /// </summary>
-        private static void LaunchSkynet(long num, long size, Action<long> postback)
+        private void LaunchSkynet(long num, long size, Action<long> postback)
         {
             if (size == 1)
             {
