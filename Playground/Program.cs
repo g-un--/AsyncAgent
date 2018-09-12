@@ -26,9 +26,10 @@ namespace Playground
             RunBenchmark<MultipleAgents_1000_Benchmark>(config, logger);
             RunBenchmark<ReactiveAsyncAgentBenchmark>(config, logger);
             RunBenchmark<AsyncAgentBenchmark>(config, logger);
+            RunBenchmark<ExclusiveSchedulerBenchmark>(config, logger);
         }
 
-        public static void RunBenchmark<T>(ManualConfig config, ILogger logger)
+        public static void RunBenchmark<T>(IConfig config, ILogger logger)
         {
             logger.WriteLineHeader(typeof(T).Name);
             var summary = BenchmarkRunner.Run<T>(config);

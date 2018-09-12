@@ -195,6 +195,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Benchmarks\AsyncAgentBenchmark.cs" />
+    <Compile Include="Benchmarks\ExclusiveSchedulerBenchmark.cs" />
     <Compile Include="Benchmarks\MultipleAgents_1000_Benchmark.cs" />
     <Compile Include="Benchmarks\ReactiveAsyncAgentBenchmark.cs" />
     <Compile Include="Program.cs" />
